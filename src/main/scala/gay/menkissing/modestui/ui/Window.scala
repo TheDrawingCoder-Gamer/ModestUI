@@ -73,12 +73,12 @@ object Window {
                         case _ => ()
                       }
                     }
-                  _ <- F.delay { window.setLayer(layer) }.toResource
+                  _ <- F.delay { window.setLayer(layer) }.toResource.evalOn(UIThreadDispatchEC)
                   _ <- F.delay { window.setEventListener(new java.util.function.Consumer[Event] { override def accept(it: Event) = listener(it) }) }.toResource
                   // TODO: Text input?
 
                 } yield window 
-              }
+              }.evalOn(UIThreadDispatchEC)
   // TRUE!
   class CurriedApply[F[_]] private[modestui] (val underlying: Boolean = true) extends AnyVal {
     def apply[T](exitOnClose: Boolean = true,
@@ -106,7 +106,7 @@ object Window {
             // TODO: position
             _ <- F.delay { window.setTitle(title) }
             _ <- F.delay { window.setVisible(true) }
-          } yield ()).toResource
+          } yield ()).toResource.evalOn(UIThreadDispatchEC)
         }
       } yield window
   }
