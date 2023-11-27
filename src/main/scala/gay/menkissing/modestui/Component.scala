@@ -13,9 +13,9 @@ trait Component[F[_], I] {
     def subscribe(maxQueued: Int): fs2.Stream[F, Event]
     def subscribeUnbounded: fs2.Stream[F, Event] =
       self.subscribe(Int.MaxValue)
-    def measure(p: IPoint): F[IPoint]
-    def draw(rect: IRect, canvas: Canvas): F[Unit]
-    def map(cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit]
+    def measure(ctx: Context, p: IPoint): F[IPoint]
+    def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit]
+    def map(ctx: Context, cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit]
   }
 }
 

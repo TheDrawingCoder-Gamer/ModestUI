@@ -1,6 +1,6 @@
 package gay.menkissing.modestui.ui;
 
-import gay.menkissing.modestui.Component
+import gay.menkissing.modestui.{Component, Context}
 import gay.menkissing.modestui.instance.*
 import gay.menkissing.modestui.core.*
 import cats.effect.*
@@ -23,12 +23,12 @@ object HAlign {
 given halign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F]): AWrapper[F, HAlign[F, T], T] with {
   extension (self: HAlign[F, T]) {
     def child = M.pure { self.myChild }
-    def draw(rect: IRect, canvas: Canvas): F[Unit] = {
+    def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = {
       for {
-        childSize <- self.myChild.measure(IPoint(rect.getWidth, rect.getHeight))
+        childSize <- self.myChild.measure(ctx, IPoint(rect.getWidth, rect.getHeight))
         left = (rect._left + (rect.getWidth * self.coeff) - (childSize._x * self.childCoeff))
         childRect = IRect.makeXYWH(left.toInt, rect._top, childSize._x, rect.getHeight)
-        _ <- self.myChild.draw(childRect, canvas)
+        _ <- self.myChild.draw(ctx, childRect, canvas)
       } yield ()
     }
   }
@@ -46,12 +46,12 @@ object VAlign {
 given valign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F]): AWrapper[F, VAlign[F, T], T] with {
   extension (self: VAlign[F, T]) {
     def child = M.pure { self.myChild }
-    def draw(rect: IRect, canvas: Canvas): F[Unit] = {
+    def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = {
       for {
-        childSize <- self.myChild.measure(IPoint(rect.getWidth, rect.getHeight))
+        childSize <- self.myChild.measure(ctx, IPoint(rect.getWidth, rect.getHeight))
         top = rect._top + (rect.getHeight * self.coeff) - (childSize._y * self.childCoeff)
         childRect = IRect.makeXYWH(rect._left, top.toInt, rect.getWidth, childSize._y)
-        _ <- self.myChild.draw(childRect, canvas)
+        _ <- self.myChild.draw(ctx, childRect, canvas)
       } yield ()
     }
   }

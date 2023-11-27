@@ -4,6 +4,7 @@ import io.github.humbleui.skija.{Canvas, Font, FontMetrics, Paint, TextLine}
 import io.github.humbleui.skija.shaper.{ShapingOptions, Shaper}
 import io.github.humbleui.jwm.Event
 import gay.menkissing.modestui.core.*
+import gay.menkissing.modestui.*
 import io.github.humbleui.types.{IPoint, IRect}
 import cats.effect.* 
 import cats.effect.syntax.all.*
@@ -25,16 +26,16 @@ object Label {
   }
 given [F[_]](using F: Async[F], M: Monad[F]): ATerminal[F, Label[F]] with
   extension (self: Label[F]) {
-    def measure(p: IPoint): F[IPoint] = 
+    def measure(ctx: Context, p: IPoint): F[IPoint] = 
       // metrics is pure : )
       for {
         width <- F.delay { self.line.getWidth }
         capHeight = self.metrics.getCapHeight
       } yield IPoint(width.toInt, capHeight.toInt)
-    def draw(rect: IRect, canvas: Canvas): F[Unit] = {
+    def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = {
       // Rect is immutable. This means access to it is pure
         // TODO: why does original call capHeight?
-       F.delay { canvas.drawTextLine(self.line, rect._left, rect._top, self.paint) }
+       F.delay { canvas.drawTextLine(self.line, rect._left, rect._top + math.ceil(self.metrics.getCapHeight).toInt, self.paint) }
     }
   }
 

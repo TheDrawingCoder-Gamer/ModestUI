@@ -4,15 +4,15 @@ import io.github.humbleui.jwm.{App, MouseCursor, Platform, TextInputClient, Wind
 import io.github.humbleui.jwm
 import io.github.humbleui.jwm.skija.{LayerD3D12Skija, LayerGLSkija, LayerMetalSkija, EventFrameSkija}
 import io.github.humbleui.skija.{Surface, Canvas}
-import io.github.humbleui.types.IRect
-import gay.menkissing.modestui.Component
+import io.github.humbleui.types.{IRect, IPoint}
+import gay.menkissing.modestui.*
 import cats.effect.*
 import cats.effect.std.*
 import cats.effect.syntax.all.*
 import cats.implicits.*
 import scala.concurrent.ExecutionContext
 object UIThreadDispatchEC extends ExecutionContext {
-  def execute(r: Runnable): Unit = App.runOnUIThread(r)
+  def execute(r: Runnable): Unit = App._nRunOnUIThread(r)
   def reportFailure(t: Throwable): Unit = {
     println(t)
     t.printStackTrace()
@@ -28,8 +28,9 @@ object Window {
                onEvent: Option[(JWindow, Event) => F[Unit]],
               )(using F: Async[F]): Resource[F, JWindow] = {
                 for {
+                  // Are you even captured? 
                   dispatcher <- Dispatcher.sequential[F]
-                  window <- F.delay { App.makeWindow() }.toResource.evalOn(UIThreadDispatchEC)
+                  window <- Resource.make(F.delay { App.makeWindow() })(window => F.delay { window.close() })
                   layer <- F.delay {
                     Platform.CURRENT match {
                       case Platform.WINDOWS => new LayerD3D12Skija()
@@ -37,49 +38,63 @@ object Window {
                       case Platform.X11 => new LayerGLSkija()
                     }
                   }.toResource
-                  listener =
-                    (event: Event) => {
-                      // TODO: don't raw dog these
-                      // this will crash if any of these functions throw
-                      if (!event.isInstanceOf[EventFrameSkija]) {
-                        onEvent match {
-                          case Some(f) => dispatcher.unsafeRunSync(f(window, event))
-                          case _ => ()
-                        }
+                  goodListener = (event: Event) => 
+                    for {
+                      _ <- event match {
+                        case _: EventFrameSkija => F.pure(())
+                        case _: jwm.EventFrame => F.pure(())
+                        case _ =>
+                          onEvent.traverse(_(window, event)).void
                       }
-                      event match {
+                      _ <- event match {
                         case _: jwm.EventWindowCloseRequest =>
-                          onCloseRequest.foreach(it => dispatcher.unsafeRunSync(it(window)))
+                          onCloseRequest.traverse(_(window)).void
                         case _: jwm.EventWindowClose =>
-                          onClose.foreach(it => dispatcher.unsafeRunSync(it))
+                          onClose.traverse(identity).void
                         case _: jwm.EventWindowScreenChange =>
-                          onScreenChange.foreach(it => dispatcher.unsafeRunSync(it(window)))
-                        case _: jwm.EventWindowResize =>
-                          onResize.foreach(it => dispatcher.unsafeRunSync(it(window)))
+                          onScreenChange.traverse(_(window)).void
                         case e: EventFrameSkija =>
-                          // the """fun""" one
-                          onPaint.foreach { onPaint =>
-                            val canvas = e._surface.getCanvas
-                            val layer = canvas.save()
-                            try {
-                              dispatcher.unsafeRunSync(onPaint(window, canvas))
-                            } catch {
-                                case _ => 
-                                  canvas.clear(0xFFCC3333)
-                            } finally {
-                              canvas.restoreToCount(layer)
-                            }
-                          }
-                        case _ => ()
+                          // yay?
+                          onPaint.traverse { onPaint =>
+                            for {
+                              isNull <- F.delay { io.github.humbleui.skija.impl.Native.getPtr(e._surface) == 0 }
+                              _ <- 
+                                if (!isNull)
+                                  for {
+                                    canvas <- F.delay { e._surface.getCanvas }
+                                    layer <- F.delay { canvas.save() }
+                                    _ <-
+                                      Resource.makeCase[F, Unit](F.delay {()}) { (_, exitCase) =>
+                                        (exitCase match {
+                                          case Resource.ExitCase.Errored(_) => F.delay { canvas.clear(0xFFCC3333) }
+                                          case _ => F.pure(())
+                                        }) *> F.delay { canvas.restoreToCount(layer) }
+                                      }.use(_ => onPaint(window, canvas))
+                                  } yield ()
+                                else
+                                  F.pure(())
+
+                            } yield ()
+                          }.void
+                        case _ =>
+                          F.pure(())
                       }
-                    }
-                  _ <- F.delay { window.setLayer(layer) }.toResource.evalOn(UIThreadDispatchEC)
+                    } yield ()
+                  listener <-
+                    F.delay {
+                      (event: Event) => {
+                        dispatcher.unsafeRunAndForget(goodListener(event))
+                      }
+                    }.toResource
+      
+                  _ <- F.delay { window.setLayer(layer) }.toResource
                   _ <- F.delay { window.setEventListener(new java.util.function.Consumer[Event] { override def accept(it: Event) = listener(it) }) }.toResource
                   // TODO: Text input?
 
                 } yield window 
               }.evalOn(UIThreadDispatchEC)
   // TRUE!
+  // do not let this be off of the UI thread or i will hurt you
   class CurriedApply[F[_]] private[modestui] (val underlying: Boolean = true) extends AnyVal {
     def apply[T](exitOnClose: Boolean = true,
                   title: String = "ModestUI",
@@ -88,27 +103,43 @@ object Window {
                   screen: Int = -1,
                   bgColor: Int = 0xFFF6F6F6
     )(daApp: Resource[F, T])(using F: Async[F], C: Component[F, T]): Resource[F, JWindow] = 
-      // forbidden exit
       for { 
         app <- daApp
-        window <- make[F](Some(it => F.delay { it.close()}), Option.when(exitOnClose)(F.delay { System.exit(0) }), None, None, 
+        mousePos <- Ref[F].of(IPoint(0, 0)).toResource
+        window <- make[F](Some(it => F.delay { it.close()}), Option.when(exitOnClose)(F.delay { App.terminate() }), None, None, 
           Some((window, canvas) => {
             for {
               _ <- F.delay { canvas.clear(bgColor) }
               bounds <- F.delay { window.getContentRect }
-              _ <- app.draw(IRect.makeXYWH(0, 0, bounds.getWidth, bounds.getHeight), canvas)
-
+              mPos <- mousePos.get
+              scale <- F.delay { window.getScreen.getScale }
+              ctx = Context(window, scale, mPos, false, false)
+              _ <- app.draw(ctx, IRect.makeXYWH(0, 0, bounds.getWidth, bounds.getHeight), canvas)
+              
             } yield ()
-          }), 
-        Some((window, event) => app.topic.publish1(event) *> F.delay { window.requestFrame() } )).flatTap { window =>
+          }),
+        // Request frame uses App.runOnUIThread, which I know is stack unsafe
+        Some((window: JWindow, event: Event) => 
+            for {
+              _ <- event match {
+                case e: jwm.EventMouseMove =>
+                  mousePos.set(IPoint(e._x, e._y))
+                case e: jwm.EventMouseButton =>
+                  mousePos.set(IPoint(e._x, e._y))
+                case _ => F.pure(())
+              }
+              _ <- app.topic.publish1(event)
+              _ <- F.delay { window.requestFrame() }
+            } yield ())).evalTap { window =>
           (for {
             _ <- F.delay { window.setWindowSize(width, height) }
             // TODO: position
             _ <- F.delay { window.setTitle(title) }
             _ <- F.delay { window.setVisible(true) }
-          } yield ()).toResource.evalOn(UIThreadDispatchEC)
+          } yield ()).evalOn(UIThreadDispatchEC)
         }
       } yield window
+
   }
   def apply[F[_]](using F: Async[F]): CurriedApply[F] =
     new CurriedApply[F]
