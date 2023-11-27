@@ -12,8 +12,9 @@ import io.github.humbleui.jwm.Event
 import io.github.humbleui.types.{IRect, IPoint}
 import io.github.humbleui.skija.Canvas
 
-class Dynamic[F[_], S, T](val childCtor: S => F[T], val ctx: SignallingRef[F, S], val curChild: Ref[F, T], topic: Topic[F, Event])
-  (using F: Async[F], C: Component[F, T]) extends HasTopic[F](topic) {
+// TODO: Will I get a redraw
+class Dynamic[F[_], S, T](val childCtor: S => F[T], val ctx: SignallingRef[F, S], val curChild: Ref[F, T])
+  (using F: Async[F], C: Component[F, T]) {
   
   private[modestui] def setup: Resource[F, Unit] =
     ctx.discrete.evalTap(it => childCtor(it).flatMap(c => curChild.set(c))).compile.drain.background.void
@@ -24,11 +25,10 @@ object Dynamic {
   sealed class DynamicBuildOps[F[_]](val underlying: Boolean = true) extends AnyVal {
     def apply[S, T](ctx: SignallingRef[F, S])(childCtor: S => F[T])(using F: Async[F], C: Component[F, T]): Resource[F, Dynamic[F, S, T]] = {
       for {
-        topic <- Topic[F, Event].toResource
         curStateVal <- ctx.get.toResource
         curChildVal <- childCtor(curStateVal).toResource
         curChild <- Ref[F].of(curChildVal).toResource
-        dyn <- F.delay { new Dynamic[F, S, T](childCtor, ctx, curChild, topic) }.toResource.flatTap(_.setup)
+        dyn <- F.delay { new Dynamic[F, S, T](childCtor, ctx, curChild) }.toResource.flatTap(_.setup)
       } yield dyn
     }
   }
@@ -37,7 +37,6 @@ object Dynamic {
 
 given dynamic_Component[F[_], S, T](using F: Async[F], C: Component[F, T]): Component[F, Dynamic[F, S, T]] with
   extension (self: Dynamic[F, S, T]) {
-    def topic = self.thisTopic
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = 
       for {
         child <- self.curChild.get
@@ -49,8 +48,11 @@ given dynamic_Component[F[_], S, T](using F: Async[F], C: Component[F, T]): Comp
         _ <- cb(Instance(self)(using this))
         _ <- child.map(ctx, cb)
       } yield ()
-    def subscribe(bound: Int): fs2.Stream[F, Event] =
-      self.thisTopic.subscribe(bound).evalTap(it => self.curChild.get >>= (_.topic.publish1(it)))
     def measure(ctx: Context, rect: IPoint): F[IPoint] =
       self.curChild.get.flatMap(_.measure(ctx, rect))
+    def event(ctx: Context, event: Event): F[Boolean] =
+      for {
+        child <- self.curChild.get
+        res <- child.event(ctx, event)
+      } yield res
   }

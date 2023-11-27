@@ -19,6 +19,17 @@ object UIThreadDispatchEC extends ExecutionContext {
   }
 }
 object Window {
+  def scale[F[_]](window: JWindow)(using F: Async[F]): F[Float] =
+    for {
+      screen <- F.delay { window.getScreen }
+      isNull <- F.delay { screen == null }
+      res <- 
+        if (!isNull)
+          F.delay { screen.getScale }
+        else
+          F.pure(1f)
+        
+    } yield res
   // Note: requires running app
   def make[F[_]](onCloseRequest: Option[JWindow => F[Unit]], 
                onClose: Option[F[Unit]],
@@ -128,8 +139,11 @@ object Window {
                   mousePos.set(IPoint(e._x, e._y))
                 case _ => F.pure(())
               }
-              _ <- app.topic.publish1(event)
-              _ <- F.delay { window.requestFrame() }
+              mPos <- mousePos.get
+              scale <- F.delay { window.getScreen.getScale }
+              ctx = Context(window, scale, mPos, false, false)
+              needsRedraw <- app.event(ctx, event)
+              _ <- F.whenA(needsRedraw) { F.delay { window.requestFrame() } }
             } yield ())).evalTap { window =>
           (for {
             _ <- F.delay { window.setWindowSize(width, height) }
