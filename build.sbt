@@ -1,6 +1,7 @@
 val scala3Version = "3.3.1"
 
 ThisBuild / scalaVersion := scala3Version
+ThisBuild / scalacOptions += "-Ykind-projector:underscores"
 lazy val root = project
   .in(file("."))
   .settings(

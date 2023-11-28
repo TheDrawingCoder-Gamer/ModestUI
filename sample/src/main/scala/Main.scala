@@ -9,7 +9,9 @@ object Main extends IOModestApp {
       Window[IO]() {
         for {
           label <- Label[IO]("hi guys")
-          center <- center[IO, Label[IO]](label)
+          button <- Button(IO.println("WOWIE ZOWIE"), label)
+          // NEW LIFE HACK!
+          center <- center[IO](button)
         } yield center
       }
   

@@ -12,7 +12,7 @@ import gay.menkissing.modestui.Component
 
 import io.github.humbleui.skija.Canvas
 import io.github.humbleui.jwm.Event
-import io.github.humbleui.types.IRect
+import io.github.humbleui.types.{RRect, IRect}
 
 // TODO: Some things don't really make sense to have a topic, but it's easier this way to prevent sadness
 class Clip[F[_], C](val myChild: C, topic: Topic[F, Event]) extends HasTopic[F](topic)
@@ -36,6 +36,31 @@ given clipComponent[F[_], C](using F: Async[F], C: Component[F, C]): AWrapper[F,
       canvas.ioBracket.use { canvas =>
         for {
           _ <- F.delay { canvas.clipRect(rect.toRect) }
+          _ <- self.myChild.draw(ctx, rect, canvas)
+        } yield ()
+      }
+  }
+class RRectClip[F[_], C](val radius: Float, val myChild: C, topic: Topic[F, Event]) extends HasTopic[F](topic)
+
+object RRectClip {
+  // TRUE!
+  case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
+    def apply[C](radius: Float, child: C)(using C: Component[F, C], F: Async[F]) =
+      for {
+        topic <- Topic[F, Event].toResource
+        clip <- F.delay { new RRectClip(radius, child, topic) }.toResource
+      } yield clip
+  }
+  def apply[F[_]] = new BuildOps[F]
+}
+
+given rrectClipComponent[F[_], C](using F: Async[F], C: Component[F, C]): AWrapper[F, RRectClip[F, C], C] with
+  extension (self: RRectClip[F, C]) {
+    def child = F.pure(self.myChild)
+    def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = 
+      canvas.ioBracket.use { canvas =>
+        for {
+          _ <- F.delay { canvas.clipRRect(RRect.makeXYWH(rect.getLeft, rect.getTop, rect.getWidth, rect.getHeight, ctx.scale * self.radius)) }
           _ <- self.myChild.draw(ctx, rect, canvas)
         } yield ()
       }

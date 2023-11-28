@@ -5,7 +5,7 @@ import cats.*
 import io.github.humbleui.jwm.Event
 import gay.menkissing.modestui.instance.{*, given}
 import cats.implicits.*
-import io.github.humbleui.types.IPoint
+import io.github.humbleui.types.{IPoint, IRect}
 import fs2.concurrent.Topic
 
 trait HasTopic[F[_]](val thisTopic: Topic[F, Event])
@@ -32,7 +32,7 @@ trait AWrapper[F[_], I, C](using M: Monad[F], C: Component[F, C]) extends Compon
   }
 }
 
-trait AContainer[F[_], I <: HasTopic[F]](using M: Monad[F]) extends Component[F, I] {
+trait AContainer[F[_], I](using M: Monad[F]) extends Component[F, I] {
   extension (self: I) {
     def children: F[List[Instance[[X] =>> Component[F, X]]]]
     def map(ctx: Context, cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit] = self.children >>= { children => 
@@ -44,3 +44,30 @@ trait AContainer[F[_], I <: HasTopic[F]](using M: Monad[F]) extends Component[F,
       }
   }
 }
+
+def rectContains(rect: IRect, pos: IPoint): Boolean =
+  rect.getLeft <= pos.getX
+  && pos.getX < rect.getRight
+  && rect.getTop <= pos.getY
+  && pos.getY < rect.getBottom
+
+val doubleClickThresholdMS = 500
+
+def eagerOrF[F[_]](thingies: F[Boolean]*)(using F: Applicative[F]): F[Boolean] =
+  thingies.toList.sequence.map(_.exists(identity))
+
+def lazyOrF[F[_]](thingies: F[Boolean]*)(using F: Monad[F]): F[Boolean] =
+  forbiddenLazyOrF[F](thingies.toList)
+private def forbiddenLazyOrF[F[_]](thingies: List[F[Boolean]])(using F: Monad[F]): F[Boolean] =
+  thingies match {
+    case next :: rest =>
+      next.flatMap { good =>
+        if (!good)
+          forbiddenLazyOrF(rest)
+        else
+          F.pure(true) // !!
+      }
+    case Nil =>
+      F.pure(false)
+  }
+

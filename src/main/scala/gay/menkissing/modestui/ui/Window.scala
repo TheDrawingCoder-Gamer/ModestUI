@@ -22,7 +22,7 @@ object Window {
   def scale[F[_]](window: JWindow)(using F: Async[F]): F[Float] =
     if (Platform.CURRENT == Platform.X11)
       // Sinful
-      F.delay(sys.env.get("MODEST_UI_SCALE").map(_.toFloat).getOrElse(1f))
+      F.delay(sys.env.get("MODEST_UI_SCALE").flatMap(_.toFloatOption).getOrElse(1f))
     else
       F.delay { window.getScreen.getScale } 
   // Note: requires running app
