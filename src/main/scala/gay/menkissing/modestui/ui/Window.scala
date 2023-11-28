@@ -20,16 +20,11 @@ object UIThreadDispatchEC extends ExecutionContext {
 }
 object Window {
   def scale[F[_]](window: JWindow)(using F: Async[F]): F[Float] =
-    for {
-      screen <- F.delay { window.getScreen }
-      isNull <- F.delay { screen == null }
-      res <- 
-        if (!isNull)
-          F.delay { screen.getScale }
-        else
-          F.pure(1f)
-        
-    } yield res
+    if (Platform.CURRENT == Platform.X11)
+      // Sinful
+      F.delay(sys.env.get("MODEST_UI_SCALE").map(_.toFloat).getOrElse(1f))
+    else
+      F.delay { window.getScreen.getScale } 
   // Note: requires running app
   def make[F[_]](onCloseRequest: Option[JWindow => F[Unit]], 
                onClose: Option[F[Unit]],
@@ -63,7 +58,8 @@ object Window {
                         case _: jwm.EventWindowClose =>
                           onClose.traverse(identity).void
                         case _: jwm.EventWindowScreenChange =>
-                          onScreenChange.traverse(_(window)).void
+                          // Force a redraw?
+                          onScreenChange.traverse(_(window)).void *> F.delay { window.requestFrame() }
                         case e: EventFrameSkija =>
                           // yay?
                           onPaint.traverse { onPaint =>
@@ -75,7 +71,7 @@ object Window {
                                     canvas <- F.delay { e._surface.getCanvas }
                                     layer <- F.delay { canvas.save() }
                                     _ <-
-                                      Resource.makeCase[F, Unit](F.delay {()}) { (_, exitCase) =>
+                                      Resource.makeCase[F, Unit](F.pure {()}) { (_, exitCase) =>
                                         (exitCase match {
                                           case Resource.ExitCase.Errored(_) => F.delay { canvas.clear(0xFFCC3333) }
                                           case _ => F.pure(())
@@ -87,6 +83,9 @@ object Window {
 
                             } yield ()
                           }.void
+                        case _: jwm.EventWindowResize =>
+                          // Force a redraw 
+                          F.delay { window.requestFrame() }
                         case _ =>
                           F.pure(())
                       }
@@ -123,8 +122,8 @@ object Window {
               _ <- F.delay { canvas.clear(bgColor) }
               bounds <- F.delay { window.getContentRect }
               mPos <- mousePos.get
-              scale <- F.delay { window.getScreen.getScale }
-              ctx = Context(window, scale, mPos, false, false)
+              dascale <- scale[F](window)
+              ctx = Context(window, dascale, mPos, false, false)
               _ <- app.draw(ctx, IRect.makeXYWH(0, 0, bounds.getWidth, bounds.getHeight), canvas)
               
             } yield ()
@@ -140,10 +139,11 @@ object Window {
                 case _ => F.pure(())
               }
               mPos <- mousePos.get
-              scale <- F.delay { window.getScreen.getScale }
-              ctx = Context(window, scale, mPos, false, false)
+              dascale <- scale[F](window)
+              ctx = Context(window, dascale, mPos, false, false)
               needsRedraw <- app.event(ctx, event)
               _ <- F.whenA(needsRedraw) { F.delay { window.requestFrame() } }
+              // _ <- F.delay { window.requestFrame() }
             } yield ())).evalTap { window =>
           (for {
             _ <- F.delay { window.setWindowSize(width, height) }
