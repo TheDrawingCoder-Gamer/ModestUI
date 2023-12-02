@@ -10,7 +10,7 @@ lazy val root = project
 
 
     libraryDependencies += "org.scalameta" %% "munit" % "0.7.29" % Test,
-    libraryDependencies += "io.github.humbleui" % "jwm" % "0.4.15",
+    libraryDependencies += "io.github.humbleui" % "jwm" % "0.4.16",
     libraryDependencies ++= Seq(
       "skija-windows-x64",
       "skija-linux-x64",
