@@ -22,7 +22,14 @@ object Window {
   def scale[F[_]](window: JWindow)(using F: Async[F]): F[Float] =
     if (Platform.CURRENT == Platform.X11)
       // Sinful
-      F.delay(sys.env.get("MODEST_UI_SCALE").flatMap(_.toFloatOption).getOrElse(1f))
+      F.delay { sys.env.get("WAYLAND_DISPLAY") } >>= {
+        case None =>
+          // prob doesn't work with WSL2 but... why are you running this in WSL2.
+          F.delay { window.getScreen.getScale }
+        case _ =>
+          // let wayland handle it bc it will look weird regardless
+          F.pure(1.0f)
+      }
     else
       F.delay { window.getScreen.getScale } 
   // Note: requires running app
