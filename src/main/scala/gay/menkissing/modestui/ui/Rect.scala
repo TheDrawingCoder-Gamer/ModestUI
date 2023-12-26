@@ -66,7 +66,7 @@ given roundedrect_Component[F[_], T](using F: Async[F], C: Component[F, T]): Com
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] =
       for {
         _ <- self.childRect.set(rect)
-        rrect = RRect.makeXYWH(rect.getLeft, rect.getTop, rect.getWidth, rect.getHeight, ctx.scale * self.radius)
+        rrect = RRect.makeXYWH(rect.getLeft, rect.getTop, rect.getWidth, rect.getHeight, (ctx.scale * self.radius).toFloat)
         _ <- F.delay { canvas.drawRRect(rrect, self.paint) }
         _ <- self.child.draw(ctx, rect, canvas)
       } yield ()

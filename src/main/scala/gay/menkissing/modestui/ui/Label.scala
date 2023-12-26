@@ -11,17 +11,23 @@ import cats.effect.syntax.all.*
 import cats.*
 import cats.implicits.*
 import fs2.concurrent.Topic
-class Label[F[_]] private (val paint: Paint, val line: TextLine, val metrics: FontMetrics, topic: Topic[F, Event]) extends HasTopic[F](topic)
+import scala.util.chaining.*
+
+class Label[F[_]] private (val paint: Paint, val line: TextLine, val metrics: FontMetrics)
 object Label {
-    def apply[F[_]](text: String)(using F: Async[F]): Resource[F, Label[F]] = {
-      for {
-        font <- F.delay { Font() }.toResource
-        paint <- F.delay { Paint() }.toResource
-        line <- F.delay { Shaper.makeShapeDontWrapOrReorder().shapeLine(text, font, ShapingOptions.DEFAULT) }.toResource
-        metrics <- F.delay { font.getMetrics() }.toResource
-        topic <- Topic[F, Event].toResource
-        label <- F.delay { new Label(paint, line, metrics, topic) }.toResource
-      } yield label
+    def apply[F[_]](text: String, font: Font = null, paint: Paint = null, features: List[String] = List())(using F: Async[F]) = {
+      Contextual[F] { context =>
+        val daFont = Option(font).getOrElse(context.fontUi.get)
+        val daPaint = Option(paint).getOrElse(context.fillText.get)
+        val daFeatures = ShapingOptions.DEFAULT.tap { it =>
+          if (!features.isEmpty)
+            it.withFeatures(features.mkString(" "))
+        }
+        val metrics = daFont.getMetrics
+        F.delay { Shaper.makeShapeDontWrapOrReorder().shapeLine(text, daFont, daFeatures) }.toResource.flatMap { line =>
+          F.delay { new Label(daPaint, line, metrics) }.toResource
+        }
+      }
     }
   }
 given [F[_]](using F: Async[F], M: Monad[F]): ATerminal[F, Label[F]] with

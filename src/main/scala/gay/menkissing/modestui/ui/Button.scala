@@ -11,27 +11,25 @@ import io.github.humbleui.skija.Paint
 
 import gay.menkissing.modestui.*
 import gay.menkissing.modestui.core.*
+import gay.menkissing.modestui.ui.Theme.exts.*
 
-val bgColorActive = 0xFFA2C7EE
-val bgColorHovered = 0xFFCFE8FC
-val bgColor = 0xFFB2D7FE
-def Button[F[_], C](onClick: F[Unit], child: C)(using F: Async[F], C: Component[F, C]) = 
-  val withContext = WithContext[F, C](it => F.pure(it.copy(hovered = false, active = false)), child)
+def Button[F[_], C](onClick: F[Unit], child: C)(using F: Async[F], C: Component[F, C]) =
+  import Value.*
+  val withContext = WithContext[F, C](Context(
+    Map(Context.hovered -> VBoolean(false), Context.active -> VBoolean(false))
+  ), child)
   for {
     centered <- center(withContext)
     padded = Padding(10, 5, centered)
     dyn <- Contextual[F] { context =>
-      for {
-        color <- 
-          (if (context.active)
-            F.delay { Paint() }.flatTap(it => F.delay { it.setColor(bgColorActive) })
-          else if (context.hovered)
-            F.delay { Paint() }.flatTap(it => F.delay { it.setColor(bgColorHovered) })
-          else 
-            F.delay { Paint() }.flatTap(it => F.delay { it.setColor(bgColor) })).toResource
-
-        rect <- Rect[F](color, padded)
-      } yield rect
+      val color = 
+        if (context.getBool(Context.active).get)
+          context.buttonBgActive.get
+        else if (context.getBool(Context.hovered).get)
+          context.buttonBgHover.get
+        else
+          context.buttonBg.get
+      Rect[F](color, padded)
     }
     clipRRect <- RRectClip[F](4f, dyn)
     clickable <- Clickable[F](clipRRect, _ => onClick)

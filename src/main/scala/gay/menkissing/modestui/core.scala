@@ -5,8 +5,11 @@ import cats.*
 import io.github.humbleui.jwm.Event
 import gay.menkissing.modestui.instance.{*, given}
 import cats.implicits.*
+import cats.effect.*
 import io.github.humbleui.types.{IPoint, IRect}
 import fs2.concurrent.Topic
+import io.github.humbleui.skija.{Paint, PaintMode}
+import scala.util.chaining.*
 
 trait HasTopic[F[_]](val thisTopic: Topic[F, Event])
 
@@ -71,3 +74,16 @@ private def forbiddenLazyOrF[F[_]](thingies: List[F[Boolean]])(using F: Monad[F]
       F.pure(false)
   }
 
+object paint {
+  def fill(p: Int): Paint =
+    // even though this is impure it doesn't depend on external vars and is mostly innocuous
+    val paint = new Paint()
+    paint.setColor(p)
+    paint
+  def stroke(p: Int, width: Double): Paint =
+    val paint = new Paint() 
+    paint.setColor(p)
+    paint.setMode(PaintMode.STROKE)
+    paint.setStrokeWidth(width.toFloat)
+    paint
+}

@@ -21,7 +21,7 @@ class Clickable[F[_], C](val onClick: Option[Event => F[Unit]], val onClickCaptu
       for {
         hover <- hovered.get
         press <- pressed.get 
-      } yield context.copy(hovered = hover, active = hover && press)
+      } yield context.setBool(Context.hovered, hover).setBool(Context.active, press && hover)
   }
 
 object Clickable {

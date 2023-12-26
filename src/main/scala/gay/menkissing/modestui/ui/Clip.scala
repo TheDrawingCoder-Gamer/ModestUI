@@ -60,7 +60,7 @@ given rrectClipComponent[F[_], C](using F: Async[F], C: Component[F, C]): AWrapp
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = 
       canvas.ioBracket.use { canvas =>
         for {
-          _ <- F.delay { canvas.clipRRect(RRect.makeXYWH(rect.getLeft, rect.getTop, rect.getWidth, rect.getHeight, ctx.scale * self.radius)) }
+          _ <- F.delay { canvas.clipRRect(RRect.makeXYWH(rect.getLeft, rect.getTop, rect.getWidth, rect.getHeight, (ctx.scale * self.radius).toFloat)) }
           _ <- self.myChild.draw(ctx, rect, canvas)
         } yield ()
       }

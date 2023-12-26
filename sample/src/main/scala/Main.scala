@@ -12,7 +12,8 @@ object Main extends IOModestApp {
           button <- Button(IO.println("WOWIE ZOWIE"), label)
           // NEW LIFE HACK!
           center <- center[IO](button)
-        } yield center
+          theme <- Theme.defaultTheme[IO](center, 12)
+        } yield theme
       }
   
 }
