@@ -14,8 +14,8 @@ import io.github.humbleui.skija.Canvas
 class Padding[T](val left: Float, val top: Float, val right: Float, val bottom: Float, val maChild: T)
 
 object Padding {
-  def apply[T](p: Float, child: T) = new Padding(p, p, p, p, child)
-  def apply[T](w: Float, h: Float, child: T) = new Padding(w, h, w, h, child)
+  def apply[T](p: Float, child: T) = new Padding[T](p, p, p, p, child)
+  def apply[T](w: Float, h: Float, child: T) = new Padding[T](w, h, w, h, child)
 }
 
 given padding_Component[F[_], T](using F: Async[F], C: Component[F, T]): AWrapper[F, Padding[T], T] with

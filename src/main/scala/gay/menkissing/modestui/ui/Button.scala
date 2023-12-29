@@ -18,9 +18,9 @@ def Button[F[_], C](onClick: F[Unit], child: C)(using F: Async[F], C: Component[
   val withContext = WithContext[F, C](Context(
     Map(Context.hovered -> VBoolean(false), Context.active -> VBoolean(false))
   ), child)
+  val centered = center[F](withContext)
+  val padded = Padding(10, 5, centered)
   for {
-    centered <- center(withContext)
-    padded = Padding(10, 5, centered)
     dyn <- Contextual[F] { context =>
       val color = 
         if (context.getBool(Context.active).get)
@@ -31,7 +31,7 @@ def Button[F[_], C](onClick: F[Unit], child: C)(using F: Async[F], C: Component[
           context.buttonBg.get
       Rect[F](color, padded)
     }
-    clipRRect <- RRectClip[F](4f, dyn)
+    clipRRect = RRectClip[F](4f, dyn)
     clickable <- Clickable[F](clipRRect, _ => onClick)
 
   } yield clickable 

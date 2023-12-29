@@ -14,17 +14,13 @@ import io.github.humbleui.skija.Canvas
 import io.github.humbleui.jwm.Event
 import io.github.humbleui.types.{RRect, IRect}
 
-// TODO: Some things don't really make sense to have a topic, but it's easier this way to prevent sadness
-class Clip[F[_], C](val myChild: C, topic: Topic[F, Event]) extends HasTopic[F](topic)
+class Clip[F[_], C](val myChild: C)
 
 object Clip {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
     def apply[C](child: C)(using C: Component[F, C], F: Async[F]) =
-      for {
-        topic <- Topic[F, Event].toResource
-        clip <- F.delay { new Clip(child, topic) }.toResource
-      } yield clip
+      new Clip[F, C](child)
   }
   def apply[F[_]] = new BuildOps[F]
 }
@@ -40,16 +36,13 @@ given clipComponent[F[_], C](using F: Async[F], C: Component[F, C]): AWrapper[F,
         } yield ()
       }
   }
-class RRectClip[F[_], C](val radius: Float, val myChild: C, topic: Topic[F, Event]) extends HasTopic[F](topic)
+class RRectClip[F[_], C](val radius: Float, val myChild: C)
 
 object RRectClip {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
     def apply[C](radius: Float, child: C)(using C: Component[F, C], F: Async[F]) =
-      for {
-        topic <- Topic[F, Event].toResource
-        clip <- F.delay { new RRectClip(radius, child, topic) }.toResource
-      } yield clip
+        new RRectClip[F, C](radius, child)
   }
   def apply[F[_]] = new BuildOps[F]
 }

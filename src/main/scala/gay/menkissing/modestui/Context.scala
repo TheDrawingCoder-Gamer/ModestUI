@@ -75,6 +75,13 @@ case class Context(
         // test me!
         copy(extras = extras ++ other)
     def merge(other: Context) = other.copy(extras = extras ++ other.extras)
+
+    override def equals(x: Any): Boolean = 
+        x match {
+            case it: Context =>
+                this.extras == it.extras
+            case _ => false
+        }
 }
 
 

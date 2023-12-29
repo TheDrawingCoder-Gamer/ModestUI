@@ -8,29 +8,40 @@ import fs2.concurrent.*
 import gay.menkissing.modestui.core.*
 import gay.menkissing.modestui.*
 import gay.menkissing.modestui.instance.*
+import gay.menkissing.modestui.events
 import io.github.humbleui.jwm.Event
 import io.github.humbleui.types.{IRect, IPoint}
 import io.github.humbleui.skija.Canvas
+import io.github.humbleui.jwm.{Window as JWindow}
 
 // Contextual will ALWAYS rebuild on draw and measure
 class Contextual[F[_], T](val childCtor: Context => Resource[F, T], val curChild: Ref[F, Option[T]],
-  val childRect: Ref[F, IRect], val destructor: Ref[F, F[Unit]])(using F: Async[F], C:Component[F, T]) {
+  val childRect: Ref[F, IRect], val destructor: Ref[F, F[Unit]], val curContext: Ref[F, Context])(using F: Async[F], C:Component[F, T]) {
     private[modestui] def rebuild(ctx: Context): F[T] =
       for {
-        child <- childCtor(ctx).allocated
-        _ <- curChild.set(Some(child._1))
-        _ <- destructor.get.flatten
-        _ <- destructor.set(child._2)
-      } yield child._1
+        curCtx <- curContext.get
+        child <- 
+          if (curCtx == ctx)
+            curChild.get.map(_.get)
+          else
+            for {
+              child <- childCtor(ctx).allocated
+              _ <- curChild.set(Some(child._1))
+              _ <- destructor.get.flatten
+              _ <- destructor.set(child._2)
+              _ <- curContext.set(ctx)
+            } yield child._1
+      } yield child
   }
 
 object Contextual {
   // TRUE! 
   sealed class BuildOps[F[_]](val underlying: Boolean = true) extends AnyVal {
     def apply[T](childCtor: Context => Resource[F, T])(using F: Async[F], C: Component[F, T]): Resource[F, Contextual[F, T]] =
-      Resource.make((Ref[F].of[Option[T]](None), Ref[F].of(IRect(0,0,0,0)), Ref[F].of(F.pure(()))).tupled.flatMap {
-        case (curChild, childRect, destructor) =>
-          F.delay { (curChild, childRect, destructor, new Contextual(childCtor, curChild, childRect, destructor)) }
+      // null is ok because i only ==
+      Resource.make((Ref[F].of[Option[T]](None), Ref[F].of(IRect(0,0,0,0)), Ref[F].of(F.pure(())), Ref[F].of[Context](null)).tupled.flatMap {
+        case (curChild, childRect, destructor, curContext) =>
+          F.delay { (curChild, childRect, destructor, new Contextual(childCtor, curChild, childRect, destructor, curContext)) }
       }) { case (_, _, destructor, _) =>
         destructor.get.flatten
       }.map(_._4)
@@ -61,11 +72,18 @@ given contextual_Component[F[_], T](using F: Async[F], C: Component[F, T]): Comp
   }
 // TODO: Will I get a redraw
 class Dynamic[F[_], S, T](val childCtor: S => F[T], val ctx: SignallingRef[F, S], val curChild: Ref[F, T],
-  val needsRedraw: Ref[F, Boolean])
+  val needsRedraw: Ref[F, Boolean], val myWindow: Ref[F, Option[JWindow]])
   (using F: Async[F], C: Component[F, T]) {
   
   private[modestui] def setup: Resource[F, Unit] =
-    ctx.discrete.evalTap(it => childCtor(it).flatMap(c => curChild.set(c) *> needsRedraw.set(true))).compile.drain.background.void
+    ctx.discrete.evalTap(it => childCtor(it).flatMap(c => 
+        curChild.set(c) *>
+        needsRedraw.set(true) *>
+        myWindow.get.flatMap { 
+          case Some(win) =>
+            F.delay { win.accept(events.EventSignalUpdated) }.evalOn(UIThreadDispatchEC)
+          case None => F.unit
+        })).compile.drain.background.void
 }
 
 object Dynamic {
@@ -77,7 +95,8 @@ object Dynamic {
         curChildVal <- childCtor(curStateVal).toResource
         curChild <- Ref[F].of(curChildVal).toResource
         needsRedraw <- Ref[F].of(false).toResource
-        dyn <- F.delay { new Dynamic[F, S, T](childCtor, ctx, curChild, needsRedraw) }.toResource.flatTap(_.setup)
+        win <- Ref[F].of[Option[JWindow]](None).toResource
+        dyn <- F.delay { new Dynamic[F, S, T](childCtor, ctx, curChild, needsRedraw, win) }.toResource.flatTap(_.setup)
       } yield dyn
     }
   }
@@ -88,6 +107,7 @@ given dynamic_Component[F[_], S, T](using F: Async[F], C: Component[F, T]): Comp
   extension (self: Dynamic[F, S, T]) {
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = 
       for {
+        _ <- self.myWindow.set(Some(ctx.window))
         child <- self.curChild.get
         _ <- child.draw(ctx, rect, canvas)
       } yield ()

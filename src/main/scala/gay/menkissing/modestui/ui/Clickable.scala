@@ -14,6 +14,27 @@ import io.github.humbleui.skija.Canvas
 import io.github.humbleui.jwm.Event
 import io.github.humbleui.jwm
 
+class Hoverable[F[_], C](val onHover: Option[Event => F[Unit]], val onHoverOut: Option[Event => F[Unit]], val child: C,
+  val childRect: Ref[F, IRect], val hovered: Ref[F, Boolean]) 
+{
+    def context(context: Context)(using F: Async[F]): F[Context] =
+      for {
+        hover <- hovered.get
+      } yield context.setBool(Context.hovered, hover)
+}
+
+object Hoverable {
+  // TRUE!
+  case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
+    def apply[C](child: C, onHover: Event => F[Unit] = null, onHoverOut: Event => F[Unit] = null)(using F: Async[F], C: Component[F, C]) =
+      for {
+        rectRef <- Ref[F].of(IRect(0, 0, 0, 0))
+        hovered <- Ref[F].of(false)
+      } yield new Hoverable(Option(onHover), Option(onHoverOut), child, rectRef, hovered)
+  }
+  
+  def apply[F[_]] = new BuildOps[F]
+}
 class Clickable[F[_], C](val onClick: Option[Event => F[Unit]], val onClickCapture: Option[Event => F[Unit]], val child: C,
   val childRect: Ref[F, IRect], val hovered: Ref[F, Boolean], val pressed: Ref[F, Boolean], val clicks: Ref[F, Int],
   val lastClick: Ref[F, Long]) {
@@ -61,9 +82,9 @@ given clickable_Component[F[_], C](using F: Async[F], C: Component[F, C]): Compo
             {
               (event match {
                 case e: jwm.EventMouseMove =>
-                  Some((e._x, e._y))
+                  Some((e.getX, e.getY))
                 case e: jwm.EventMouseButton =>
-                  Some((e._x, e._y))
+                  Some((e.getX, e.getY))
                 case _ =>
                   None
               }).traverse { case (x, y) =>

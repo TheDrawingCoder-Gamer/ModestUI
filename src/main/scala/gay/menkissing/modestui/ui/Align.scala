@@ -11,14 +11,15 @@ import io.github.humbleui.types.{IRect, IPoint}
 import io.github.humbleui.skija.Canvas
 import fs2.concurrent.Topic
 import io.github.humbleui.jwm.Event
-class HAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T, topic: Topic[F, Event]) extends HasTopic[F](topic)
+class HAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T)
 
 object HAlign {
-  def apply[F[_], T](coeff: Float, child: T)(using F: Async[F], C: Component[F, T]): Resource[F, HAlign[F, T]] =
-    for {
-      topic <- Topic[F, Event].toResource
-      halign <- F.delay { new HAlign(coeff, coeff, child, topic)}.toResource
-    } yield halign
+  // TRUE!
+  case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
+    def apply[T](coeff: Float, child: T)(using F: Async[F], C: Component[F, T]) =
+      new HAlign[F, T](coeff, coeff, child)
+  }
+  def apply[F[_]] = new BuildOps[F]
 }
 given halign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F]): AWrapper[F, HAlign[F, T], T] with {
   extension (self: HAlign[F, T]) {
@@ -35,13 +36,14 @@ given halign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F
 }
 
 
-class VAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T, topic: Topic[F, Event]) extends HasTopic[F](topic)
+class VAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T)
 object VAlign {
-  def apply[F[_], T](coeff: Float, child: T)(using F: Async[F], C: Component[F, T]): Resource[F, VAlign[F, T]] =
-    for {
-      topic <- Topic[F, Event].toResource
-      valign <- F.delay { new VAlign(coeff, coeff, child, topic) }.toResource
-    } yield valign
+  // TRUE!
+  case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
+    def apply[T](coeff: Float, child: T)(using F: Async[F], C: Component[F, T]) =
+      new VAlign[F, T](coeff, coeff, child)
+  }
+  def apply[F[_]] = new BuildOps[F]
 }
 given valign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F]): AWrapper[F, VAlign[F, T], T] with {
   extension (self: VAlign[F, T]) {
@@ -59,9 +61,9 @@ given valign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F
 
 
 
-
+// TRUE!
 sealed case class CenterApplied[F[_]](val underlying: Boolean = true) extends AnyVal {
   def apply[T](child: T)(using Async[F], Component[F, T]) =
-    VAlign[F, T](0.5, child).flatMap(HAlign(0.5, _))
+    VAlign[F](0.5, HAlign[F](0.5, child))
 }
 def center[F[_]] = new CenterApplied[F]
