@@ -36,7 +36,7 @@ given rect_Component[F[_], T](using F: Async[F], C: Component[F, T]): Component[
         _ <- F.delay { canvas.drawRect(rect.toRect, self.paint) }
         _ <- self.child.draw(ctx, rect, canvas)
       } yield ()
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       self.child.event(ctx, event)
     def map(ctx: Context, cb: Instance[Component[F, _]] => F[Unit]): F[Unit] = 
       cb(Instance(self)(using this)) *> self.child.map(ctx, cb)
@@ -68,7 +68,7 @@ given roundedrect_Component[F[_], T](using F: Async[F], C: Component[F, T]): Com
         _ <- F.delay { canvas.drawRRect(rrect, self.paint) }
         _ <- self.child.draw(ctx, rect, canvas)
       } yield ()
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       self.child.event(ctx, event)
     def map(ctx: Context, cb: Instance[Component[F, _]] => F[Unit]): F[Unit] = 
       cb(Instance(self)(using this)) *> self.child.map(ctx, cb)

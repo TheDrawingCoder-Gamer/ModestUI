@@ -32,7 +32,7 @@ object Window {
                onScreenChange: Option[JWindow => F[Unit]],
                onResize: Option[JWindow => F[Unit]],
                onPaint: Option[(JWindow, Canvas) => F[Unit]],
-               onEvent: Option[(JWindow, Event) => F[Unit]],
+               onEvent: Option[(JWindow, events.MEvent) => F[Unit]],
               )(using F: Async[F]): Resource[F, JWindow] = {
                 for {
                   // Are you even captured? 
@@ -52,7 +52,7 @@ object Window {
                         case _: EventFrameSkija => F.pure(())
                         case _: jwm.EventFrame => F.pure(())
                         case _ =>
-                          onEvent.traverse(_(window, event)).void
+                          onEvent.traverse(_(window, events.MEvent.fromJWM(event))).void
                       }
                       _ <- event match {
                         case _: jwm.EventWindowCloseRequest =>
@@ -130,16 +130,14 @@ object Window {
             } yield ()
           }),
         // Request frame uses App.runOnUIThread, which I know is stack unsafe
-        Some((window: JWindow, event: Event) =>
+        Some((window: JWindow, event: events.MEvent) =>
             if (window.isClosed)
               F.unit;
             else  {
               for {
                 _ <- event match {
-                  case e: jwm.EventMouseMove =>
-                    mousePos.set(IPoint(e.getX, e.getY))
-                  case e: jwm.EventMouseButton =>
-                    mousePos.set(IPoint(e.getX, e.getY))
+                  case e: events.MMouseEvent =>
+                    mousePos.set(IPoint(e.x, e.y))
                   case _ => F.pure(())
                 }
                 mPos <- mousePos.get

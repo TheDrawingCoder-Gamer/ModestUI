@@ -6,7 +6,6 @@ import cats.effect.*
 import cats.effect.syntax.all.*
 
 import io.github.humbleui.types.{IRect, IPoint}
-import io.github.humbleui.jwm.Event
 import io.github.humbleui.skija.Canvas
 
 import gay.menkissing.modestui.*
@@ -24,7 +23,7 @@ given withContext_Component[F[_], T](using F: Async[F], C: Component[F, T]): Com
       self.child.measure(self.context(ctx), size)
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] =
       self.child.draw(self.context(ctx), rect, canvas)
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       self.child.event(self.context(ctx), event)
     def map(ctx: Context, cb: Instance[Component[F, _]] => F[Unit]): F[Unit] =
       cb(Instance(self)(using this)) *>

@@ -7,7 +7,6 @@ import cats.effect.syntax.all.*
 import fs2.concurrent.*
 import gay.menkissing.modestui.*
 import gay.menkissing.modestui.events
-import io.github.humbleui.jwm.Event
 import io.github.humbleui.types.{IRect, IPoint}
 import io.github.humbleui.skija.Canvas
 import io.github.humbleui.jwm.{Window as JWindow}
@@ -59,7 +58,7 @@ given contextual_Component[F[_], T](using F: Async[F], C: Component[F, T]): Comp
       self.rebuild(ctx).flatMap { child =>
         child.measure(ctx, size)
       }
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       self.curChild.get.flatMap { child => 
         child.map(_.event(ctx, event)).getOrElse(F.pure(false))
       }
@@ -79,7 +78,7 @@ class Dynamic[F[_], S, T](val childCtor: S => F[T], val ctx: SignallingRef[F, S]
         needsRedraw.set(true) *>
         myWindow.get.flatMap { 
           case Some(win) =>
-            F.delay { win.accept(events.EventSignalUpdated) }.evalOn(UIThreadDispatchEC)
+            F.delay { win.accept(events.MEventSignalUpdated) }.evalOn(UIThreadDispatchEC)
           case None => F.unit
         })).compile.drain.background.void
 }
@@ -117,7 +116,7 @@ given dynamic_Component[F[_], S, T](using F: Async[F], C: Component[F, T]): Comp
       } yield ()
     def measure(ctx: Context, rect: IPoint): F[IPoint] =
       self.curChild.get.flatMap(_.measure(ctx, rect))
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       for {
         child <- self.curChild.get
         needsRedraw <- self.needsRedraw.get 

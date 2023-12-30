@@ -9,7 +9,6 @@ import fs2.concurrent.Topic
 import gay.menkissing.modestui.*
 
 import io.github.humbleui.skija.Canvas
-import io.github.humbleui.jwm.Event
 import io.github.humbleui.types.{RRect, IRect}
 
 class Clip[F[_], C](val myChild: C)

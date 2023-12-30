@@ -16,7 +16,7 @@ trait ATerminal[F[_], I](using app: Applicative[F]) extends Component[F, I] {
   extension (self: I) {
     def map(ctx: Context, cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit] =
       cb(Instance(self)(using this))
-    def event(ctx: Context, event: Event): F[Boolean] = app.pure(false)
+    def event(ctx: Context, event: events.MEvent): F[Boolean] = app.pure(false)
   }
 }
 
@@ -29,7 +29,7 @@ trait AWrapper[F[_], I, C](using M: Monad[F], C: Component[F, C]) extends Compon
     def map(ctx: Context, cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit] = self.child >>= { child =>
       cb(Instance(self)(using this)) *> child.map(ctx, cb)
     }
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       child.flatMap(_.event(ctx, event))
   }
 }
@@ -40,7 +40,7 @@ trait AContainer[F[_], I](using M: Monad[F]) extends Component[F, I] {
     def map(ctx: Context, cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit] = self.children >>= { children => 
       cb(Instance(self)(using this)) *> children.traverse(child => child.instance.map(child.item)(ctx, cb)).void
     }
-    def event(ctx: Context, event: Event): F[Boolean] =
+    def event(ctx: Context, event: events.MEvent): F[Boolean] =
       self.children.flatMap { children =>
         children.traverse(child => child.instance.event(child.item)(ctx, event)).map(_.exists(identity))
       }

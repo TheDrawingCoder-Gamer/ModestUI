@@ -8,7 +8,6 @@ import cats.implicits.*
 import io.github.humbleui.types.{IRect, IPoint}
 import io.github.humbleui.skija.Canvas
 import fs2.concurrent.Topic
-import io.github.humbleui.jwm.Event
 class HAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T)
 
 object HAlign {

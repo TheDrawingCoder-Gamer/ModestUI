@@ -12,7 +12,7 @@ import io.github.humbleui.skija.Canvas
 import io.github.humbleui.jwm.Event
 import io.github.humbleui.jwm
 
-class Hoverable[F[_], C](val onHover: Option[Event => F[Unit]], val onHoverOut: Option[Event => F[Unit]], val child: C,
+class Hoverable[F[_], C](val onHover: Option[events.MEvent => F[Unit]], val onHoverOut: Option[events.MEvent => F[Unit]], val child: C,
   val childRect: Ref[F, IRect], val hovered: Ref[F, Boolean]) 
 {
     def context(context: Context)(using F: Async[F]): F[Context] =
@@ -24,7 +24,7 @@ class Hoverable[F[_], C](val onHover: Option[Event => F[Unit]], val onHoverOut: 
 object Hoverable {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
-    def apply[C](child: C, onHover: Event => F[Unit] = null, onHoverOut: Event => F[Unit] = null)(using F: Async[F], C: Component[F, C]) =
+    def apply[C](child: C, onHover: events.MEvent => F[Unit] = null, onHoverOut: events.MEvent => F[Unit] = null)(using F: Async[F], C: Component[F, C]) =
       for {
         rectRef <- Ref[F].of(IRect(0, 0, 0, 0))
         hovered <- Ref[F].of(false)
@@ -33,7 +33,7 @@ object Hoverable {
   
   def apply[F[_]] = new BuildOps[F]
 }
-class Clickable[F[_], C](val onClick: Option[Event => F[Unit]], val onClickCapture: Option[Event => F[Unit]], val child: C,
+class Clickable[F[_], C](val onClick: Option[events.MEvent => F[Unit]], val onClickCapture: Option[events.MEvent => F[Unit]], val child: C,
   val childRect: Ref[F, IRect], val hovered: Ref[F, Boolean], val pressed: Ref[F, Boolean], val clicks: Ref[F, Int],
   val lastClick: Ref[F, Long]) {
     def context(context: Context)(using F: Async[F]): F[Context] =
@@ -46,7 +46,7 @@ class Clickable[F[_], C](val onClick: Option[Event => F[Unit]], val onClickCaptu
 object Clickable {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
-    def apply[C](child: C, onClick: Event => F[Unit] = null, onClickCapture: Event => F[Unit] = null)
+    def apply[C](child: C, onClick: events.MEvent => F[Unit] = null, onClickCapture: events.MEvent => F[Unit] = null)
     (using F: Async[F], C: Component[F, C]): Resource[F, Clickable[F, C]] =
       (for {
         rectRef <- Ref[F].of(IRect(0, 0, 0, 0))
@@ -72,17 +72,15 @@ given clickable_Component[F[_], C](using F: Async[F], C: Component[F, C]): Compo
     def map(ctx: Context, cb: Instance[[X] =>> Component[F, X]] => F[Unit]): F[Unit] = self.context(ctx).flatMap { ctx =>
       cb(Instance(self)(using this)) *> self.child.map(ctx, cb)
     }
-    def event(ctx: Context, event: Event): F[Boolean] = 
+    def event(ctx: Context, event: events.MEvent): F[Boolean] = 
       for {
         _ <- F.whenA(event.isInstanceOf[jwm.EventMouseMove])(self.clicks.set(0) *> self.lastClick.set(0))
         res <-
           eagerOrF[F](
             {
               (event match {
-                case e: jwm.EventMouseMove =>
-                  Some((e.getX, e.getY))
-                case e: jwm.EventMouseButton =>
-                  Some((e.getX, e.getY))
+                case e: events.MMouseEvent =>
+                  Some((e.x, e.y))
                 case _ =>
                   None
               }).traverse { case (x, y) =>
@@ -101,7 +99,7 @@ given clickable_Component[F[_], C](using F: Async[F], C: Component[F, C]): Compo
                 pressed <- self.pressed.get
                 newPressed =
                   event match {
-                    case e: jwm.EventMouseButton =>
+                    case e: events.MEventMouseButton =>
                       if (e.isPressed)
                         hovered 
                       else
