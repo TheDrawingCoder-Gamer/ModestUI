@@ -1,9 +1,8 @@
-package gay.menkissing.modestui.core;
+package gay.menkissing.modestui;
 
 import gay.menkissing.modestui.{Component, Context}
 import cats.*
 import io.github.humbleui.jwm.Event
-import gay.menkissing.modestui.instance.{*, given}
 import cats.implicits.*
 import cats.effect.*
 import io.github.humbleui.types.{IPoint, IRect}

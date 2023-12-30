@@ -10,8 +10,6 @@ import io.github.humbleui.types.{IRect, RRect, IPoint}
 import io.github.humbleui.jwm.Event
 
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.core.*
-import gay.menkissing.modestui.instance.*
 
 class Rect[F[_], T](val paint: Paint, val child: T, val childRect: Ref[F, IRect])
 

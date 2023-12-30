@@ -1,4 +1,4 @@
-package gay.menkissing.modestui.instance
+package gay.menkissing.modestui
 
 sealed trait ∃[F[_]] {
   type A

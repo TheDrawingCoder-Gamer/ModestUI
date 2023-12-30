@@ -1,8 +1,6 @@
 package gay.menkissing.modestui.ui;
 
-import gay.menkissing.modestui.{Component, Context}
-import gay.menkissing.modestui.instance.*
-import gay.menkissing.modestui.core.*
+import gay.menkissing.modestui.*
 import cats.effect.*
 import cats.effect.syntax.all.*
 import cats.*

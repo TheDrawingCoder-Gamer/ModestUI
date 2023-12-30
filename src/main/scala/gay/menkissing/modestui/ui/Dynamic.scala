@@ -5,9 +5,7 @@ import cats.implicits.*
 import cats.effect.*
 import cats.effect.syntax.all.*
 import fs2.concurrent.*
-import gay.menkissing.modestui.core.*
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.instance.*
 import gay.menkissing.modestui.events
 import io.github.humbleui.jwm.Event
 import io.github.humbleui.types.{IRect, IPoint}

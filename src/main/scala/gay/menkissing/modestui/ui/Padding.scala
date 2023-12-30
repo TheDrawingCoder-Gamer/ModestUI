@@ -1,7 +1,6 @@
 package gay.menkissing.modestui.ui
 
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.core.*
 
 import cats.*
 import cats.syntax.all.*

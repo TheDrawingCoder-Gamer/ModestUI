@@ -7,8 +7,6 @@ import cats.effect.syntax.all.*
 import fs2.concurrent.Topic
 
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.core.*
-import gay.menkissing.modestui.Component
 
 import io.github.humbleui.skija.Canvas
 import io.github.humbleui.jwm.Event

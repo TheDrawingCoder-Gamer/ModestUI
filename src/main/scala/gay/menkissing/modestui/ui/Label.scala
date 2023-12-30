@@ -3,7 +3,6 @@ package gay.menkissing.modestui.ui
 import io.github.humbleui.skija.{Canvas, Font, FontMetrics, Paint, TextLine}
 import io.github.humbleui.skija.shaper.{ShapingOptions, Shaper}
 import io.github.humbleui.jwm.Event
-import gay.menkissing.modestui.core.*
 import gay.menkissing.modestui.*
 import io.github.humbleui.types.{IPoint, IRect}
 import cats.effect.* 

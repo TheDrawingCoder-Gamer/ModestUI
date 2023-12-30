@@ -10,7 +10,6 @@ import io.github.humbleui.types.{IPoint, IRect}
 import io.github.humbleui.skija.Paint
 
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.core.*
 import gay.menkissing.modestui.ui.Theme.exts.*
 
 def Button[F[_], C](onClick: F[Unit], child: C)(using F: Async[F], C: Component[F, C]) =

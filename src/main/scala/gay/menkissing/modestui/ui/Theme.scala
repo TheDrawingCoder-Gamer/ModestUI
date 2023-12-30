@@ -2,8 +2,6 @@ package gay.menkissing.modestui.ui
 
 import gay.menkissing.modestui.ui.*
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.core.*
-import gay.menkissing.modestui.instance.*
 
 import io.github.humbleui.skija.*
 

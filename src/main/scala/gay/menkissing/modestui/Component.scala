@@ -3,7 +3,6 @@ package gay.menkissing.modestui;
 import io.github.humbleui.types.{IPoint, IRect};
 import io.github.humbleui.jwm.Event;
 import io.github.humbleui.skija.Canvas
-import gay.menkissing.modestui.instance.*
 
 trait Component[F[_], I] {
   extension (self: I) {

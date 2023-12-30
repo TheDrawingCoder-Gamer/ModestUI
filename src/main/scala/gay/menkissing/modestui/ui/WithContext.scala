@@ -10,8 +10,6 @@ import io.github.humbleui.jwm.Event
 import io.github.humbleui.skija.Canvas
 
 import gay.menkissing.modestui.*
-import gay.menkissing.modestui.core.*
-import gay.menkissing.modestui.instance.*
 
 class WithContext[F[_], T](val ctx: Context, val child: T) {
   def context(other: Context) =
