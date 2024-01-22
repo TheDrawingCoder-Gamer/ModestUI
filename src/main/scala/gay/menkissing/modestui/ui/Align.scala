@@ -13,7 +13,7 @@ class HAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T)
 object HAlign {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
-    def apply[T](coeff: Float, child: T)(using F: Async[F], C: Component[F, T]) =
+    def apply[T](coeff: Float, child: T)(using F: Sync[F], C: Component[F, T]) =
       new HAlign[F, T](coeff, coeff, child)
   }
   def apply[F[_]] = new BuildOps[F]
@@ -37,7 +37,7 @@ class VAlign[F[_], T](val childCoeff: Float, val coeff: Float, val myChild: T)
 object VAlign {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
-    def apply[T](coeff: Float, child: T)(using F: Async[F], C: Component[F, T]) =
+    def apply[T](coeff: Float, child: T)(using F: Sync[F], C: Component[F, T]) =
       new VAlign[F, T](coeff, coeff, child)
   }
   def apply[F[_]] = new BuildOps[F]
@@ -60,7 +60,7 @@ given valign_Component[F[_], T](using C: Component[F, T], S: Sync[F], M: Monad[F
 
 // TRUE!
 sealed case class CenterApplied[F[_]](val underlying: Boolean = true) extends AnyVal {
-  def apply[T](child: T)(using Async[F], Component[F, T]) =
+  def apply[T](child: T)(using Sync[F], Component[F, T]) =
     VAlign[F](0.5, HAlign[F](0.5, child))
 }
 def center[F[_]] = new CenterApplied[F]

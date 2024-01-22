@@ -14,7 +14,7 @@ import scala.util.chaining.*
 
 class Label[F[_]] private (val paint: Paint, val line: TextLine, val metrics: FontMetrics)
 object Label {
-    def apply[F[_]](text: String, font: Font = null, paint: Paint = null, features: List[String] = List())(using F: Async[F]) = {
+    def apply[F[_]](text: String, font: Font = null, paint: Paint = null, features: List[String] = List())(using F: Sync[F]) = {
       Contextual[F] { context =>
         val daFont = Option(font).getOrElse(context.fontUi.get)
         val daPaint = Option(paint).getOrElse(context.fillText.get)
@@ -29,7 +29,7 @@ object Label {
       }
     }
   }
-given [F[_]](using F: Async[F], M: Monad[F]): ATerminal[F, Label[F]] with
+given [F[_]](using F: Sync[F], M: Monad[F]): ATerminal[F, Label[F]] with
   extension (self: Label[F]) {
     def measure(ctx: Context, p: IPoint): F[IPoint] = 
       // metrics is pure : )

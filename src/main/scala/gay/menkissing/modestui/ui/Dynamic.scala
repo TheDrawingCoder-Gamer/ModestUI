@@ -13,7 +13,7 @@ import io.github.humbleui.jwm.{Window as JWindow}
 
 // Contextual will ALWAYS rebuild on draw and measure
 class Contextual[F[_], T](val childCtor: Context => Resource[F, T], val curChild: Ref[F, Option[T]],
-  val childRect: Ref[F, IRect], val destructor: Ref[F, F[Unit]], val curContext: Ref[F, Context])(using F: Async[F], C:Component[F, T]) {
+  val childRect: Ref[F, IRect], val destructor: Ref[F, F[Unit]], val curContext: Ref[F, Context])(using F: Sync[F], C:Component[F, T]) {
     private[modestui] def rebuild(ctx: Context): F[T] =
       for {
         curCtx <- curContext.get
@@ -34,7 +34,7 @@ class Contextual[F[_], T](val childCtor: Context => Resource[F, T], val curChild
 object Contextual {
   // TRUE! 
   sealed class BuildOps[F[_]](val underlying: Boolean = true) extends AnyVal {
-    def apply[T](childCtor: Context => Resource[F, T])(using F: Async[F], C: Component[F, T]): Resource[F, Contextual[F, T]] =
+    def apply[T](childCtor: Context => Resource[F, T])(using F: Sync[F], C: Component[F, T]): Resource[F, Contextual[F, T]] =
       // null is ok because i only ==
       Resource.make((Ref[F].of[Option[T]](None), Ref[F].of(IRect(0,0,0,0)), Ref[F].of(F.pure(())), Ref[F].of[Context](null)).tupled.flatMap {
         case (curChild, childRect, destructor, curContext) =>
@@ -46,7 +46,7 @@ object Contextual {
   def apply[F[_]] = new BuildOps[F]
 }
 
-given contextual_Component[F[_], T](using F: Async[F], C: Component[F, T]): Component[F, Contextual[F, T]] with 
+given contextual_Component[F[_], T](using F: Sync[F], C: Component[F, T]): Component[F, Contextual[F, T]] with 
   extension (self: Contextual[F, T]) {
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] =
       for {
@@ -100,7 +100,7 @@ object Dynamic {
   def apply[F[_]]: DynamicBuildOps[F] = new DynamicBuildOps[F]
 }
 
-given dynamic_Component[F[_], S, T](using F: Async[F], C: Component[F, T]): Component[F, Dynamic[F, S, T]] with
+given dynamic_Component[F[_], S, T](using F: Sync[F], C: Component[F, T]): Component[F, Dynamic[F, S, T]] with
   extension (self: Dynamic[F, S, T]) {
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] = 
       for {

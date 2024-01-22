@@ -17,7 +17,7 @@ object Padding {
   def apply[T](w: Float, h: Float, child: T) = new Padding[T](w, h, w, h, child)
 }
 
-given padding_Component[F[_], T](using F: Async[F], C: Component[F, T]): AWrapper[F, Padding[T], T] with
+given padding_Component[F[_], T](using F: Sync[F], C: Component[F, T]): AWrapper[F, Padding[T], T] with
   extension (self: Padding[T]) {
     def child = F.pure(self.maChild)
     override def measure(ctx: Context, size: IPoint): F[IPoint] =

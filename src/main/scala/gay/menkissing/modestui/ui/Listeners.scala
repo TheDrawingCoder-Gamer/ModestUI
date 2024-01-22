@@ -28,7 +28,7 @@ object EventListener {
   def apply[F[_]] = new BuildOps[F]
 }
 
-given component_EventListener[F[_], T](using F: Async[F], C: Component[F, T]): AWrapper[F, EventListener[F, T], T] with {
+given component_EventListener[F[_], T](using F: Sync[F], C: Component[F, T]): AWrapper[F, EventListener[F, T], T] with {
   extension (self: EventListener[F, T]) {
     def child = self.child.pure[F]
     def draw(ctx: Context, rect: IRect, canvas: Canvas) =

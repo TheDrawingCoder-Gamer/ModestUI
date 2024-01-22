@@ -12,7 +12,7 @@ import io.github.humbleui.skija.Paint
 import gay.menkissing.modestui.*
 import gay.menkissing.modestui.ui.Theme.exts.*
 
-def Button[F[_], C](onClick: F[Unit], child: C)(using F: Async[F], C: Component[F, C]) =
+def Button[F[_], C](onClick: F[Unit], child: C)(using F: Sync[F], C: Component[F, C]) =
   import Value.*
   val withContext = WithContext[F, C](Context(
     Map(Context.hovered -> VBoolean(false), Context.active -> VBoolean(false))

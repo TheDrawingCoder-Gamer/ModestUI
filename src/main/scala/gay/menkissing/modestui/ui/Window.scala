@@ -18,6 +18,17 @@ object UIThreadDispatchEC extends ExecutionContext {
     t.printStackTrace()
   }
 }
+object RunNow extends ExecutionContext {
+  // Can blow the stack if nested.
+  // womp womp
+  def execute(r: Runnable): Unit = r.run()
+  def reportFailure(t: Throwable): Unit = {
+    println(t)
+    t.printStackTrace()
+  }
+}
+
+
 object Window {
   def scale[F[_]](window: JWindow)(using F: Async[F]): F[Float] =
     F.delay { window.getScale } 
@@ -35,8 +46,8 @@ object Window {
                onEvent: Option[(JWindow, events.MEvent) => F[Unit]],
               )(using F: Async[F]): Resource[F, JWindow] = {
                 for {
-                  // Are you even captured? 
-                  dispatcher <- Dispatcher.sequential[F]
+                  // parasitic for this thread?
+                  dispatcher <- Dispatcher.sequential[F].evalOn(RunNow)
                   window <- Resource.make(F.delay { App.makeWindow() })(window => F.delay { window.close() })
                   layer <- F.delay {
                     Platform.CURRENT match {
@@ -46,31 +57,31 @@ object Window {
                       case Platform.WAYLAND => new LayerGLSkija()
                     }
                   }.toResource
-                  goodListener = (event: Event) => 
-                    for {
-                      _ <- event match {
-                        case _: EventFrameSkija => F.pure(())
-                        case _: jwm.EventFrame => F.pure(())
+                  goodListener = (event: Event) =>
+                    val mevent = events.MEvent.fromJWM(event)
+                    val res = for {
+                      _ <- mevent match {
+                        case _: events.MEventFrameSkija => F.pure(())
+                        case events.MEventFrame => F.pure(())
                         case _ =>
-                          onEvent.traverse(_(window, events.MEvent.fromJWM(event))).void
+                          onEvent.traverse(_(window, mevent)).void
                       }
-                      _ <- event match {
-                        case _: jwm.EventWindowCloseRequest =>
+                      _ <- mevent match {
+                        case events.MEventWindowCloseRequest =>
                           onCloseRequest.traverse(_(window)).void
-                        case _: jwm.EventWindowClose =>
+                        case events.MEventWindowClose =>
                           onClose.traverse(identity).void
-                        case _: jwm.EventWindowScreenChange =>
+                        case events.MEventWindowScreenChange =>
                           onScreenChange.traverse(_(window)).void
                           
-                        case e: EventFrameSkija =>
+                        case e: events.MEventFrameSkija =>
                           // yay?
                           onPaint.traverse { onPaint =>
                             for {
-                              isNull <- F.delay { io.github.humbleui.skija.impl.Native.getPtr(e._surface) == 0 }
                               _ <- 
-                                if (!isNull)
+                                if (e.surface != null)
                                   for {
-                                    canvas <- F.delay { e.getSurface.getCanvas }
+                                    canvas <- F.delay { e.surface.getCanvas }
                                     layer <- F.delay { canvas.save() }
                                     _ <-
                                       Resource.makeCase[F, Unit](F.pure {()}) { (_, exitCase) =>
@@ -85,16 +96,27 @@ object Window {
 
                             } yield ()
                           }.void
-                        case _: jwm.EventWindowResize =>
-                          onResize.traverse(_(window)).void *> F.delay { window.requestFrame() }
+                        case _: events.MEventWindowResize =>
+                          onResize.traverse(_(window)).void
                         case _ =>
                           F.pure(())
                       }
                     } yield ()
+                    mevent match {
+                      case _: events.TimedEvent =>
+                        (true, res)
+                      case _ =>
+                        (false, res)
+                    }
                   listener <-
                     F.delay {
+                      // womp womp
                       (event: Event) => {
-                        dispatcher.unsafeRunAndForget(goodListener(event))
+                        val (timed, res) = goodListener(event)
+                        if (timed)
+                          dispatcher.unsafeRunSync(res)
+                        else
+                          dispatcher.unsafeRunAndForget(res)
                       }
                     }.toResource
       
@@ -145,7 +167,6 @@ object Window {
                 ctx = Context(window, dascale, mPos)
                 needsRedraw <- app.event(ctx, event)
                 _ <- F.whenA(needsRedraw) { F.delay { window.requestFrame() } }
-                // _ <- F.delay { window.requestFrame() }
               } yield ()
             })).evalTap { window =>
           (for {

@@ -1,9 +1,14 @@
 package gay.menkissing.modestui.events
 
 import io.github.humbleui.jwm.*
+import io.github.humbleui.jwm.skija.EventFrameSkija
 import io.github.humbleui.types.IPoint
+import io.github.humbleui.skija.Surface
 
 sealed trait MEvent
+
+// marker trait for events that must be executed syncronously
+trait TimedEvent {}
 
 object MEvent {
   def fromJWM(e: Event): MEvent = {
@@ -52,6 +57,10 @@ object MEvent {
         MEventWindowRestore
       case _: EventWindowScreenChange =>
         MEventWindowScreenChange
+      case ee: EventFrameSkija =>
+        MEventFrameSkija(ee.getSurface)
+      case ee: EventFrame =>
+        MEventFrame
       case MEventSignalUpdated =>
         MEventSignalUpdated
       case _ => null
@@ -126,4 +135,5 @@ case class MEventWindowResize(windowWidth: Int, windowHeight: Int, contentWidth:
 case object MEventWindowRestore extends MEvent
 case object MEventWindowScreenChange extends MEvent
 
-
+case class MEventFrameSkija(surface: Surface) extends MEvent, TimedEvent
+case object MEventFrame extends MEvent, TimedEvent

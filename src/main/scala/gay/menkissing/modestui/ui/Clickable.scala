@@ -15,7 +15,7 @@ import io.github.humbleui.jwm
 class Hoverable[F[_], C](val onHover: Option[events.MEvent => F[Unit]], val onHoverOut: Option[events.MEvent => F[Unit]], val child: C,
   val childRect: Ref[F, IRect], val hovered: Ref[F, Boolean]) 
 {
-    def context(context: Context)(using F: Async[F]): F[Context] =
+    def context(context: Context)(using F: Sync[F]): F[Context] =
       for {
         hover <- hovered.get
       } yield context.setBool(Context.hovered, hover)
@@ -24,7 +24,7 @@ class Hoverable[F[_], C](val onHover: Option[events.MEvent => F[Unit]], val onHo
 object Hoverable {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
-    def apply[C](child: C, onHover: events.MEvent => F[Unit] = null, onHoverOut: events.MEvent => F[Unit] = null)(using F: Async[F], C: Component[F, C]) =
+    def apply[C](child: C, onHover: events.MEvent => F[Unit] = null, onHoverOut: events.MEvent => F[Unit] = null)(using F: Sync[F], C: Component[F, C]) =
       for {
         rectRef <- Ref[F].of(IRect(0, 0, 0, 0))
         hovered <- Ref[F].of(false)
@@ -36,7 +36,7 @@ object Hoverable {
 class Clickable[F[_], C](val onClick: Option[events.MEvent => F[Unit]], val onClickCapture: Option[events.MEvent => F[Unit]], val child: C,
   val childRect: Ref[F, IRect], val hovered: Ref[F, Boolean], val pressed: Ref[F, Boolean], val clicks: Ref[F, Int],
   val lastClick: Ref[F, Long]) {
-    def context(context: Context)(using F: Async[F]): F[Context] =
+    def context(context: Context)(using F: Sync[F]): F[Context] =
       for {
         hover <- hovered.get
         press <- pressed.get 
@@ -47,7 +47,7 @@ object Clickable {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
     def apply[C](child: C, onClick: events.MEvent => F[Unit] = null, onClickCapture: events.MEvent => F[Unit] = null)
-    (using F: Async[F], C: Component[F, C]): Resource[F, Clickable[F, C]] =
+    (using F: Sync[F], C: Component[F, C]): Resource[F, Clickable[F, C]] =
       (for {
         rectRef <- Ref[F].of(IRect(0, 0, 0, 0))
         hovered <- Ref[F].of(false)
@@ -58,7 +58,7 @@ object Clickable {
   }
   def apply[F[_]] = new BuildOps[F]
 }
-given clickable_Component[F[_], C](using F: Async[F], C: Component[F, C]): Component[F, Clickable[F, C]] with
+given clickable_Component[F[_], C](using F: Sync[F], C: Component[F, C]): Component[F, Clickable[F, C]] with
   extension (self: Clickable[F, C]) {
     def measure(ctx: Context, rect: IPoint): F[IPoint] = 
       self.context(ctx).flatMap(ctx => self.child.measure(ctx, rect))

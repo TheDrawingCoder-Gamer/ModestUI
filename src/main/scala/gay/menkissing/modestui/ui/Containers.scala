@@ -21,9 +21,9 @@ case class Child[F[_]](mode: Container.Mode, factor: Float, child: Instance[Comp
 object Child {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) extends AnyVal {
-    def hug[C](child: C)(using F: Async[F], C: Component[F, C]) =
+    def hug[C](child: C)(using F: Sync[F], C: Component[F, C]) =
       Child[F](Container.Mode.Hug, 0, child)
-    def stretch[C](factor: Float, child: C)(using F: Async[F], C: Component[F, C]) =
+    def stretch[C](factor: Float, child: C)(using F: Sync[F], C: Component[F, C]) =
       Child[F](Container.Mode.Stretch, factor, child)
   }
   def apply[F[_]] = new BuildOps[F]
@@ -42,7 +42,7 @@ object Column {
 
 }
 
-given column_Component[F[_]](using F: Async[F]): AContainer[F, Column[F]] with {
+given column_Component[F[_]](using F: Sync[F]): AContainer[F, Column[F]] with {
   extension (self: Column[F]) {
     def children = self.children.pure[F]
     def measure(ctx: Context, size: IPoint): F[IPoint] = {
@@ -99,7 +99,7 @@ object Row {
 
 }
 
-given row_Component[F[_]](using F: Async[F]): AContainer[F, Row[F]] with {
+given row_Component[F[_]](using F: Sync[F]): AContainer[F, Row[F]] with {
   extension (self: Row[F]) {
     def children = self.children.pure[F]
     def measure(ctx: Context, size: IPoint): F[IPoint] = {

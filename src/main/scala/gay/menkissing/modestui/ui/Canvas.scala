@@ -13,13 +13,13 @@ import io.github.humbleui.types.{IPoint, IRect}
 class ACanvas[F[_]](val onPaint: Option[(Context, Canvas, IPoint) => F[Unit]], val onEvent: Option[(Context, events.MEvent) => F[Boolean]], val curRect: Ref[F, IRect])
 
 object ACanvas {
-  def apply[F[_]](onPaint: (Context, Canvas, IPoint) => F[Unit] = null, onEvent: (Context, events.MEvent) => F[Boolean] = null)(using F: Async[F]) =
+  def apply[F[_]](onPaint: (Context, Canvas, IPoint) => F[Unit] = null, onEvent: (Context, events.MEvent) => F[Boolean] = null)(using F: Sync[F]) =
     for {
       curRect <- Ref[F].of(IRect(0, 0, 0, 0))
     } yield new ACanvas[F](Option(onPaint), Option(onEvent), curRect)
 }
 
-given component_ACanvas[F[_]](using F: Async[F]): ATerminal[F, ACanvas[F]] with {
+given component_ACanvas[F[_]](using F: Sync[F]): ATerminal[F, ACanvas[F]] with {
   extension (self: ACanvas[F]) {
     def draw(ctx: Context, rect: IRect, canvas: Canvas): F[Unit] =
       for {

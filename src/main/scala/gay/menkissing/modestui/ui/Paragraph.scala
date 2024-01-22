@@ -83,7 +83,7 @@ class Paragraph[F[_]](val paint: Paint, val tokens: List[Token], val lineHeight:
 
 object Paragraph {
   case class Opts(font: Option[Font] = None, paint: Option[Paint] = None, lineHeight: Option[Float] = None, features: List[String] = List())
-  def apply[F[_]](text: String, opts: Opts = Opts())(using F: Async[F]) = {
+  def apply[F[_]](text: String, opts: Opts = Opts())(using F: Sync[F]) = {
     Contextual[F] { ctx =>
       val font = opts.font.getOrElse(ctx.fontUi.get)
       val paint = opts.paint.getOrElse(ctx.fillText.get)
@@ -99,7 +99,7 @@ object Paragraph {
   }
 }
 
-given component_Paragraph[F[_]](using F: Async[F]): ATerminal[F, Paragraph[F]] with
+given component_Paragraph[F[_]](using F: Sync[F]): ATerminal[F, Paragraph[F]] with
   extension (self: Paragraph[F]) {
     def measure(ctx: Context, p: IPoint): F[IPoint] = {
       val dalayout = layout(self.tokens, p.getX, self.metrics.getCapHeight, self.lineHeight)

@@ -17,7 +17,7 @@ class WithContext[F[_], T](val ctx: Context, val child: T) {
 
 // TODO: do I need a good builder that does resource?
 
-given withContext_Component[F[_], T](using F: Async[F], C: Component[F, T]): Component[F, WithContext[F, T]] with 
+given withContext_Component[F[_], T](using F: Sync[F], C: Component[F, T]): Component[F, WithContext[F, T]] with 
   extension (self: WithContext[F, T]) {
     def measure(ctx: Context, size: IPoint): F[IPoint] =
       self.child.measure(self.context(ctx), size)

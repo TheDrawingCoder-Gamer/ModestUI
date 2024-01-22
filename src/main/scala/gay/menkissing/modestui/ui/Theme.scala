@@ -117,7 +117,7 @@ object Theme {
   // TRUE!
   case class BuildOps[F[_]](underlying: Boolean = true) {
     import Value.*
-    def apply[C](child: C, fontSize: Int, opts: Map[String, Value] = Map())(using F: Async[F], C: Component[F, C]) = 
+    def apply[C](child: C, fontSize: Int, opts: Map[String, Value] = Map())(using F: Sync[F], C: Component[F, C]) = 
       Contextual[F] { context =>
         val scale = context.scale
         val fillText = opts.get(Theme.fillText).flatMap {
